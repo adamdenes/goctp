@@ -1,0 +1,31 @@
+syntax = "proto3";
+package event;
+option go_package = "../event";
+
+message Kline {
+    string eventType = 1;
+    int64 eventTime = 2;
+    string symbol = 3;
+    
+    int64 startTime = 4;
+    int64 closeTime = 5;
+    string symbolInner = 6;
+    string interval = 7;
+    int64 firstTradeID = 8; 
+    int64 lastTradeID = 9; 
+    double openPrice = 10;
+    double closePrice = 11;
+    double highPrice = 12;
+    double lowPrice = 13;   
+    int64 baseAssetVolume = 14;
+    int64 numberOfTrades = 15;
+    bool isKlineClosed = 16;
+    double quoteAssetVolume = 17;
+    int64 takerBuyBaseAssetVolume = 18;
+    double takerBuyQuoteAssetVolume = 19;
+    int64 ignore = 20;
+}
+
+message HistoricalKline {
+    Kline kline = 1;
+}
