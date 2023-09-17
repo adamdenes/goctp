@@ -40,6 +40,8 @@ func (a *ScyllaDB) Receive(c actor.Context) {
 		// Insert data into the corresponding table
 		a.insertKlineData(symbol, msg)
 
+		// IS THIS NECESSARY? WebSocket stream should be evaluated on the spot, not stored
+		// Maybe saving only historical data makes sense...
 	case *event.HistoricalKline:
 		// TODO: this event will provide Candlestick information from the REST API
 		// and this data will be used for backtesting as opposed to the real-time
