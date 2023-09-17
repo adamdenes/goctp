@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/adamdenes/goctp/actors/consumer"
 	"github.com/asynkron/protoactor-go/actor"
@@ -10,6 +10,6 @@ import (
 func main() {
 	system := actor.NewActorSystem()
 	pid, _ := system.Root.SpawnNamed(actor.PropsFromProducer(consumer.NewBinance()), "binance")
-	fmt.Println(pid)
+	log.Printf("Starting actor %v with %v", pid.Id, pid.Address)
 	select {}
 }
