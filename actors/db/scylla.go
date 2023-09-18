@@ -13,13 +13,17 @@ type ScyllaDB struct {
 	session  *gocql.Session
 	hosts    []string
 	keyspace string
+	username string
+	password string
 }
 
-func NewScyllaDB(h []string, k string) actor.Producer {
+func NewScyllaDB(h []string, k string, u string, p string) actor.Producer {
 	return func() actor.Actor {
 		return &ScyllaDB{
 			hosts:    h,
 			keyspace: k,
+			username: u,
+			password: p,
 		}
 	}
 }
@@ -31,7 +35,7 @@ func (a *ScyllaDB) Receive(c actor.Context) {
 		// preparing statements
 		a.start()
 	case *event.Kline:
-		// log.Println("[RECEIVED]:", msg)
+		// log.Printf("[RECEIVED]: %#v\n", msg)
 		// Create a table for a specific symbol/actor
 		symbol := msg.GetSymbol()
 		if err := a.createTableForSymbol(symbol); err != nil {
@@ -74,7 +78,8 @@ func (a *ScyllaDB) connect() (*gocql.Session, error) {
 	cluster := gocql.NewCluster(a.hosts...)
 	cluster.Consistency = gocql.Quorum
 	cluster.Port = 9042
-	cluster.ProtoVersion = 0
+	cluster.ProtoVersion = 4
+	cluster.Authenticator = gocql.PasswordAuthenticator{Username: a.username, Password: a.password}
 
 	// Create new session
 	return cluster.CreateSession()
@@ -88,7 +93,6 @@ func (a *ScyllaDB) createKeyspace(session *gocql.Session) error {
 			'replication_factor': 1
 		};
 	`, a.keyspace)
-
 	if err := session.Query(createKeyspaceQuery).Exec(); err != nil {
 		return fmt.Errorf("error creating keyspace %s: %v", a.keyspace, err)
 	}
