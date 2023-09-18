@@ -7,6 +7,8 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 
 	"github.com/adamdenes/goctp/actors/db"
@@ -21,7 +23,7 @@ const apiKey = "6r3PLGC5RcRnHIlMkAej55otVT9YHPPkXKCB4z2dUIDx698MUVj1IvOcQPBnEFns
 const apiSecret = "xVdliUOTP48qj0gQj96MKJ6F8Vmf4urj2vVEXSwlODINMxDXA8tXXBzf307Qt3q2"
 
 // figure out a better way for this
-var hosts = []string{"172.17.0.2"}
+var hosts = []string{"172.17.0.2", "172.17.0.3", "172.17.0.4"}
 
 // temporary selection, will be configured from webinterface
 var symbols = []string{"btcusdt", "ethusdt"}
@@ -118,7 +120,13 @@ func (b *Binance) start() {
 	b.ws = conn
 
 	for _, s := range symbols {
-		pid, _ := b.actx.SpawnNamed(actor.PropsFromProducer(db.NewScyllaDB(hosts, "binance")), s)
+		pid, _ := b.actx.SpawnNamed(actor.PropsFromProducer(
+			db.NewScyllaDB(
+				hosts,
+				os.Getenv("SCYLLA_KEYSPACE"),
+				os.Getenv("SCYLLA_USER"),
+				os.Getenv("SCYLLA_PASSWORD"))),
+			s)
 		b.dbPid[s] = pid
 		log.Printf("Spwaning scylla child actor: %v\n", b.dbPid[s].Id)
 	}
@@ -132,27 +140,39 @@ func splitStream(stream string) (string, string) {
 }
 
 func composeKline(data *fastjson.Value) *event.Kline {
-	d := data.GetObject("k")
+	d := data.Get("k")
+	fmt.Println(d.Get("B"))
+
+	open, _ := strconv.ParseFloat(string(d.GetStringBytes("o")), 64)
+	close, _ := strconv.ParseFloat(string(d.GetStringBytes("c")), 64)
+	high, _ := strconv.ParseFloat(string(d.GetStringBytes("h")), 64)
+	low, _ := strconv.ParseFloat(string(d.GetStringBytes("l")), 64)
+	bav, _ := strconv.ParseInt(string(d.GetStringBytes("v")), 10, 64)
+	qav, _ := strconv.ParseFloat(string(d.GetStringBytes("q")), 64)
+	tbbav, _ := strconv.ParseInt(string(d.GetStringBytes("V")), 10, 64)
+	tbqav, _ := strconv.ParseFloat(string(d.GetStringBytes("Q")), 64)
+	i, _ := strconv.ParseInt(string(d.GetStringBytes("B")), 10, 64)
+
 	return &event.Kline{
 		EventType:                string(data.GetStringBytes("e")),
 		EventTime:                data.GetInt64("E"),
 		Symbol:                   string(data.GetStringBytes("s")),
-		StartTime:                d.Get("t").GetInt64(),
-		CloseTime:                d.Get("T").GetInt64(),
-		SymbolInner:              d.Get("s").String(),
-		Interval:                 d.Get("i").String(),
-		FirstTradeID:             d.Get("f").GetInt64(),
-		LastTradeID:              d.Get("L").GetInt64(),
-		OpenPrice:                d.Get("o").GetFloat64(),
-		ClosePrice:               d.Get("c").GetFloat64(),
-		HighPrice:                d.Get("h").GetFloat64(),
-		LowPrice:                 d.Get("l").GetFloat64(),
-		BaseAssetVolume:          d.Get("v").GetInt64(),
-		NumberOfTrades:           d.Get("n").GetInt64(),
-		IsKlineClosed:            d.Get("x").GetBool(),
-		QuoteAssetVolume:         d.Get("q").GetFloat64(),
-		TakerBuyBaseAssetVolume:  d.Get("V").GetInt64(),
-		TakerBuyQuoteAssetVolume: d.Get("Q").GetFloat64(),
-		Ignore:                   d.Get("B").GetInt64(),
+		StartTime:                d.GetInt64("t"),
+		CloseTime:                d.GetInt64("T"),
+		SymbolInner:              string(d.GetStringBytes("s")),
+		Interval:                 string(d.GetStringBytes("i")),
+		FirstTradeID:             d.GetInt64("f"),
+		LastTradeID:              d.GetInt64("L"),
+		OpenPrice:                open,
+		ClosePrice:               close,
+		HighPrice:                high,
+		LowPrice:                 low,
+		BaseAssetVolume:          bav,
+		NumberOfTrades:           d.GetInt64("n"),
+		IsKlineClosed:            d.GetBool("x"),
+		QuoteAssetVolume:         qav,
+		TakerBuyBaseAssetVolume:  tbbav,
+		TakerBuyQuoteAssetVolume: tbqav,
+		Ignore:                   i,
 	}
 }
